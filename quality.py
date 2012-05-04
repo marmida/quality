@@ -1,6 +1,7 @@
 # import coverage
 # import nose
-import inspect
+import ast
+import inspect # remove me
 import subprocess
 import os.path
 import sys
@@ -9,13 +10,23 @@ import sys
 # the live objects in its module, post-import.  Maybe it'd be better to use python's
 # source code tools?
 
+IGNORED_ATTRS = [
+	'im_self',
+	'im_class',
+	'im_func',
+	'__func__',
+]
+
 def enumerate_module(modname):
 	mod = __import__(modname)
 	return enumerate_code(mod)
 
 def enumerate_code(obj):
 	ret = {}
-	for name, member in inspect.getmembers(obj, lambda x: (inspect.isfunction(x) or inspect.isclass(x)) and not inspect.isbuiltin(x)):
+	for name, member in inspect.getmembers(obj, lambda x: (inspect.isroutine(x) or inspect.isclass(x)) and not inspect.isbuiltin(x)):
+		if name in IGNORED_ATTRS:
+			# this attr is part of the data model; ignore it
+			continue
 		try:
 			sourcefile = inspect.getsourcefile(member)
 			sourcelines = inspect.getsourcelines(member)
@@ -23,7 +34,21 @@ def enumerate_code(obj):
 			# this is a built-in class, usually part of the type system; inspect.isbuiltin doesn't exclude these
 			# skip this item
 			continue
-		ret[name] = (member, inspect.getsourcelines(member), enumerate_code(member))
+		lines = inspect.getsourcelines(member)
+		subs = enumerate_code(member)
+		linenums = frozenset(range(lines[1], lines[1]+len(lines[0]))) - union_line_nums(subs)
+
+		ret[name] = (member, list(linenums), subs)
+	
+	return ret
+
+def union_line_nums(subs):
+	ret = set()
+	for sub in subs.itervalues():
+		ret.update(sub[1])
+
+		# gather line numbers from all sub-routines
+		ret.update(union_line_nums(sub[2]))
 	
 	return ret
 

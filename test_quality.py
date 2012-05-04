@@ -16,7 +16,7 @@ def teardown():
 @with_setup(setup, teardown)
 def test_enumerate_module():
     import test_enumerate_routines_1
-    ok_(
+    assert_equal(
         quality.enumerate_module('test_enumerate_routines_1'),
         {
             'afunc': (test_enumerate_routines_1.afunc, [6, 7], {}),
@@ -35,9 +35,9 @@ def test_enumerate_module():
     )
 
 @with_setup(setup, teardown)
-def test_enumerate_module():
+def test_enumerate_nested_classes():
     import test_enumerate_routines_2
-    ok_(
+    assert_equal(
         quality.enumerate_module('test_enumerate_routines_2'),
         {
             'Outer': 
@@ -58,7 +58,75 @@ def test_enumerate_module():
                 ),
         }
     )
-    
+
+@with_setup(setup, teardown)
+def test_enumerate_extramodule_code():
+    import test_enumerate_routines_3
+    assert_equal(
+        quality.enumerate_module('test_enumerate_routines_3'),
+        {
+            'Child': (test_enumerate_routines_3.Child, [8, 9], {}),
+            'Child2': 
+                (
+                    test_enumerate_routines_3.Child2,
+                    [],
+                    {
+                        'another_function': (
+                            test_enumerate_routines_3.Child2.another_function,
+                            [12, 13],
+                            {}
+                        ),
+                    }
+                ),
+        }
+    )
+
+def test_union_line_nums():
+    assert_equal(
+        quality.union_line_nums(
+            {
+                'what': (lambda x: x, [1, 2, 3], {}),
+            }
+        ),
+        set([1, 2, 3]),
+    )
+    assert_equal(
+        quality.union_line_nums(
+            {
+                'what': (
+                    lambda x: x, 
+                    [1, 2, 3], 
+                    {
+                        'where': (lambda x: x, [3], {})
+                    }),
+            }
+        ),
+        set([1, 2, 3]),
+    )
+    assert_equal(
+        quality.union_line_nums(
+            {
+                'what': (
+                    lambda x: x, 
+                    [1, 2, 3], 
+                    {
+                        'where': (lambda x: x, [4], {})
+                    }),
+            }
+        ),
+        set([1, 2, 3, 4]),
+    )
+    assert_equal(
+        quality.union_line_nums(
+            {
+                'what': (lambda x: x, [1, 2, 3], {}),
+                'when': (lambda x: x, [4, 5], {}),
+                'why': (lambda x: x, [6], {}),
+            }
+        ),
+        set([1, 2, 3, 4, 5, 6]),
+    )
+
 @unittest.expectedFailure
 def test_quality():
 	ok_(
