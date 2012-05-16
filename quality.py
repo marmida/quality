@@ -1,87 +1,207 @@
-# import coverage
-# import nose
+'''
+Code quality analysis for Python.
+
+Currently, this means "C.R.A.P. metric calculation for Python."  For background
+on C.R.A.P., see http://www.artima.com/weblogs/viewpost.jsp?thread=215899
+'''
+
+# general module todo: what about lambdas?
+
 import ast
-import inspect # remove me
-import subprocess
+import xml.etree.ElementTree
 import os.path
-import sys
 
-# maybe this isn't a good idea: this implementation inspects the code under test via
-# the live objects in its module, post-import.  Maybe it'd be better to use python's
-# source code tools?
+# ###
+# About annotate_linenums:
+# 
+# see also: http://www.python.org/dev/peps/pep-3155/
+# until PEP-3155 is ubiquitous, we do that work ourselves in annotate_qualname
 
-IGNORED_ATTRS = [
-	'im_self',
-	'im_class',
-	'im_func',
-	'__func__',
-]
+# Notes about our line number strategy: 
+# We need produce line numbers that match up with coverage.py's analysis
+# coverage.py produces statement line numbers via the 'xml' command; it 
+# does not, for instance, include the 'else:' lines of if statements, since
+# they aren't statements themselves.
+# This is different than the 'annotate' command of coverage; it has special
+# logic for cases like 'else:', and includes them.
 
-def enumerate_module(modname):
-	mod = __import__(modname)
-	return enumerate_code(mod)
+def annotate_linenums(node):
+    '''
+    post-order traversal of 'node', adding to each node an attribute: 'descendant_lines'
 
-def enumerate_code(obj):
-	ret = {}
-	for name, member in inspect.getmembers(obj, lambda x: (inspect.isroutine(x) or inspect.isclass(x)) and not inspect.isbuiltin(x)):
-		if name in IGNORED_ATTRS:
-			# this attr is part of the data model; ignore it
-			continue
-		try:
-			sourcefile = inspect.getsourcefile(member)
-			sourcelines = inspect.getsourcelines(member)
-		except TypeError:
-			# this is a built-in class, usually part of the type system; inspect.isbuiltin doesn't exclude these
-			# skip this item
-			continue
-		lines = inspect.getsourcelines(member)
-		subs = enumerate_code(member)
-		linenums = frozenset(range(lines[1], lines[1]+len(lines[0]))) - union_line_nums(subs)
+    This attribute gets added only if the node is either of ast.ClassDef or ast.FunctionDef;
+    it contains a sorted list of the line numbers of descendant nodes not contained by 
+    an intervening ClassDef or FunctionDef.
 
-		ret[name] = (member, list(linenums), subs)
-	
-	return ret
+    todo: don't bother changing results back to a list; it's just going to get converted back to a set
+    '''
+    descendant_lines = set()
+    for i in (node.body if node.__class__.__name__ in ['ClassDef', 'FunctionDef'] else ast.iter_child_nodes(node)):
+        descendant_lines.update(annotate_linenums(i))
 
-def union_line_nums(subs):
-	ret = set()
-	for sub in subs.itervalues():
-		ret.update(sub[1])
+    # if this node is a class or function def, store the collected line numbers in it
+    if node.__class__.__name__ in ['ClassDef', 'FunctionDef']:
+        node.descendant_lines = sorted(list(descendant_lines))
+        return frozenset()
 
-		# gather line numbers from all sub-routines
-		ret.update(union_line_nums(sub[2]))
-	
-	return ret
+    # otherwise, bubble up the collected lines
+    if hasattr(node, 'lineno'):
+        descendant_lines.add(node.lineno)
+    return descendant_lines
 
-def quality(src_path, test_path):
-	#1: cleanup from past runs
-	subprocess.call(['coverage', 'erase'])
+def annotate_qualnames(node, parents=[]):
+    '''
+    Append 'qualname' attributes to FunctionDef and ClassDef nodes
 
-	#2: run unit tests with coverage
-	# currently using shell to avoid infinite recursion when running quality under its own tests
-	# fixme: run nose programmatically while avoiding the infinite recursion
-	subprocess.call(['nosetests', '--with-coverage', test_path])
+    todo: handle multiple definitions of the same name in the same scope, e.g.:
 
-	#3: collect coverage XML
-	# fixme: once nose is running in the same interpreter, just use the coverage API
-	subprocess.call(['coverage', 'xml'])
-	lxml.objectify.parse('coverage.xml')
+        def outer():
+            def inner():
+                pass
+            def inner():
+                pass
+    '''
+    
+    if node.__class__.__name__ in ['ClassDef', 'FunctionDef']:
+        new_parents = parents[:]
+        new_parents.append(node.name)
+        node.qualname = '.'.join(new_parents)
+    else:
+        new_parents = parents
 
-	#4: enumerate code in module under test
-	# add code under test to sys.path
-	# todo: should this be a context manager instead?
-	sys.path.append(os.path.dirname(src_path))
-	# enumerate callables
-	callables = enumerate_callables(os.path.splitext(os.path.basename(src_path))[0])
-	# remove last entry from sys.path
-	sys.path.pop()
+    for i in ast.iter_child_nodes(node):
+        annotate_qualnames(i, new_parents)
 
-	ret = {}
-	for name, member in callables.iteritems():
-		# for each callable...
-		pass
-		#5: calculate coverage for callables
+class CCAnnotator(object):
+    '''
+    Almost like ast.NodeVisitor, except that I've separated the traversal/dispatching
+    from the optional visiting logic; I didn't like how the other one worked.
 
-		#6: analyze complexity
-		#7: calculate quality
+    Heavily borrowed from David Stanek's pygenie/cc.py.
 
-	return ret
+    todo: refactor; CCAnnotator isn't really a class, just a namespace for functions
+    '''
+    def visit(self, node):
+        '''
+        Descend to child nodes and sum their complexity.  Always visits all child nodes, 
+        regardless of whether or not there's a visit_{NodeType} function defined.
+        '''
+        child_complexity = sum(self.visit(child) for child in ast.iter_child_nodes(node))
+
+        # is there a specialized dispatch function to handle this node?
+        # if not, assume the complexity of this node is 0
+        visitor = getattr(self, ('visit_%s' % node.__class__.__name__), lambda x: 0)
+
+        cur_complexity = visitor(node)
+
+        if node.__class__.__name__ in ['Module', 'FunctionDef', 'ClassDef']:
+            node.complexity = cur_complexity + child_complexity
+            return 0
+
+        return cur_complexity + child_complexity
+
+    # class, function nodes
+    def visit_FunctionDef(self, node):
+        '''
+        functions and classes: begin a new path of execution, so they have a complexity of 1
+        '''
+        return 1
+
+    visit_ClassDef = visit_FunctionDef
+
+    # if, for, while, with, generators, comprehensions
+    def _visit_control(self, node):
+        '''
+        Control flow structures and comprehensions all add 1 complexity.
+
+        todo: review cc theory and make sure comprehensions really should increase complexity
+        todo: maybe 'If' should be +1 for the presence of an 'orelse'?
+        '''
+        return 1
+    # listed in order of the 'ast' module docs' grammar listing
+    visit_For = visit_While = visit_If = visit_With \
+        = visit_IfExp = visit_ListComp = visit_SetComp = visit_DictComp \
+        = _visit_control
+
+    # and, or nodes
+    def visit_BoolOp(self, node):
+        '''
+        and/or: complexity +1
+        '''
+        return 1
+
+def find_defs(node, ls):
+    '''
+    Populate ls with a list of nodes from the ast tree that are definitions: 
+    modules, functions, and classes.
+
+    todo: refactor this extra-ugly function; it builds a list as a side-effect
+    '''
+    if node.__class__.__name__ in ['Module', 'ClassDef', 'FunctionDef']:
+        ls.append(node)
+
+    for child in ast.iter_child_nodes(node):
+        find_defs(child, ls)
+
+def gen_class_elems(doc):
+    '''
+    yield 'class' elements from a coverage.xml document
+    '''
+    for package_elem in doc.getroot()[0]:
+        for class_elem in package_elem[0]:
+            yield class_elem
+
+def extract_hit_lines(doc, source_path):
+    '''
+    Extract from the etree-style doc a set of lines that are covered by unit tests.
+    'source_path' is the path to the file under test.
+    '''
+    for class_elem in gen_class_elems(doc):
+        if class_elem.get('filename') == source_path:
+            break
+    else:
+        raise ValueError('couldn\'t find coverage data for source file "%s" in coverage.xml document' % source_path)
+
+    hit_lines = set()
+    for line_elem in class_elem[1]:
+        if line_elem.get('hits') == '1':
+            hit_lines.add(int(line_elem.get('number')))
+
+    return hit_lines
+
+def calc_coverage_ratio(def_lines, hit_lines):
+    '''
+    Compare the lines inside the definition, 'def_lines', against the lines reported
+    hit by the unit tests, 'hit_lines', and return the prortion of coverage.
+    '''
+    if len(def_lines) == 0:
+        # if a def has no lines, we'll call it 100% covered.
+        return 1.0
+    return float(len(frozenset(def_lines) & hit_lines)) / len(def_lines)
+    
+
+def quality(coverage_xml_path, src_path):
+    # digest coverage.xml
+    coverage_doc = xml.etree.ElementTree.parse(coverage_xml_path)
+    hit_lines = extract_hit_lines(coverage_doc, src_path)
+
+    # annotate the ast of the source
+    # todo: refactor or redesign; we're using the AST tree to store our data, and that means
+    # passing around the same args over and over, C-style.
+    src_tree = ast.parse(open(src_path).read(), filename=src_path)
+    annotate_qualnames(src_tree)
+    annotate_linenums(src_tree)
+    CCAnnotator().visit(src_tree)
+
+    defs = []
+    find_defs(src_tree, defs)
+    
+    ret = []
+    for def_node in defs:
+        cov_ratio = calc_coverage_ratio(def_node.descendant_lines, hit_lines)
+
+        # for each definition, calculate quality
+        quality = (def_node.complexity ** 2) * (1 - cov_ratio) + def_node.complexity
+        ret.append((def_node.qualname, quality))
+
+    return ret
