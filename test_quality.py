@@ -10,7 +10,7 @@ import xml.etree.ElementTree
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 
-def test_annotate_linenums():
+def test_annotate_linenums_basics():
     tree = ast.parse('''def dosomething():
     pass
 
@@ -25,6 +25,7 @@ if True:
     assert_equal([2], tree.body[0].descendant_lines)
     assert_equal([5], tree.body[1].descendant_lines)
 
+def test_annotate_linenums_nesting():
     tree = ast.parse(''' # line 1
 def dosomething():
     pass
@@ -48,7 +49,7 @@ def dosomething():
     # line 10 isn't part of the next assertion, because it's not a statement
     assert_equal([7, 14], tree.body[0].body[1].body[1].descendant_lines)
 
-    # test docstrings
+def test_annotate_linenums_docstrings():
     tree = ast.parse(''''module docstring'
 pass
 
@@ -61,6 +62,18 @@ def dosomething():
     quality.annotate_linenums(tree)
     assert_equal([2], tree.descendant_lines)
     assert_equal([8], tree.body[2].descendant_lines)
+
+def test_annotate_linenums_multiline():
+    '''
+    annotate_linenums: multi-line statements should only be counted against the initial 
+    line, in order to coincide with coverage.xml
+    '''
+    tree = ast.parse('''
+a = b = \\
+    c = \\
+    3''')
+    quality.annotate_linenums(tree)
+    assert_equal([2], tree.descendant_lines)
 
 def test_annotate_qualnames():
     tree = ast.parse('''
