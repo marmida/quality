@@ -16,8 +16,12 @@ def test_annotate_linenums():
 
 def dosomethingelse():
     print 'it did something!'
+
+if True:
+    print 'hi there'
 ''')
     quality.annotate_linenums(tree)
+    assert_equal([7, 8], tree.descendant_lines)
     assert_equal([2], tree.body[0].descendant_lines)
     assert_equal([5], tree.body[1].descendant_lines)
 
@@ -38,10 +42,25 @@ def dosomething():
         dosomethingelse = dosomething
 ''')
     quality.annotate_linenums(tree)
+    assert_equal([], tree.descendant_lines)
     assert_equal([3], tree.body[0].descendant_lines)
     assert_equal([5, 15], tree.body[0].body[1].descendant_lines)
     # line 10 isn't part of the next assertion, because it's not a statement
     assert_equal([7, 14], tree.body[0].body[1].body[1].descendant_lines)
+
+    # test docstrings
+    tree = ast.parse(''''module docstring'
+pass
+
+def dosomething():
+    \'\'\'
+    multi-line function docstring
+    \'\'\'
+    pass
+''')
+    quality.annotate_linenums(tree)
+    assert_equal([2], tree.descendant_lines)
+    assert_equal([8], tree.body[2].descendant_lines)
 
 def test_annotate_qualnames():
     tree = ast.parse('''
@@ -54,6 +73,7 @@ def function_b():
             pass
         ''')
     quality.annotate_qualnames(tree)
+    assert_equal('<module>', tree.qualname)
     assert_equal('function_a', tree.body[0].qualname)
     assert_equal('function_b', tree.body[1].qualname)
     assert_equal('function_b.C1', tree.body[1].body[0].qualname)

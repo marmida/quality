@@ -29,18 +29,25 @@ def annotate_linenums(node):
     '''
     post-order traversal of 'node', adding to each node an attribute: 'descendant_lines'
 
-    This attribute gets added only if the node is either of ast.ClassDef or ast.FunctionDef;
-    it contains a sorted list of the line numbers of descendant nodes not contained by 
+    This attribute gets added only if the node is a ClassDef, FunctionDef, or Module,
+    and contains a sorted list of the line numbers of descendant nodes not contained by 
     an intervening ClassDef or FunctionDef.
 
     todo: don't bother changing results back to a list; it's just going to get converted back to a set
     '''
     descendant_lines = set()
-    for i in (node.body if node.__class__.__name__ in ['ClassDef', 'FunctionDef'] else ast.iter_child_nodes(node)):
+    children = iter(node.body) if node.__class__.__name__ in ['ClassDef', 'FunctionDef'] else ast.iter_child_nodes(node)
+
+    first_child = True
+    for i in children:
+        if first_child and i.__class__.__name__ == 'Expr' and i.value.__class__.__name__ == 'Str':
+            # this is a docstring
+            first_child = False
+            continue
         descendant_lines.update(annotate_linenums(i))
 
-    # if this node is a class or function def, store the collected line numbers in it
-    if node.__class__.__name__ in ['ClassDef', 'FunctionDef']:
+    # if this node is a module, class or function def, store the collected line numbers in it
+    if node.__class__.__name__ in ['Module', 'ClassDef', 'FunctionDef']:
         node.descendant_lines = sorted(list(descendant_lines))
         return frozenset()
 
@@ -67,6 +74,10 @@ def annotate_qualnames(node, parents=[]):
         new_parents.append(node.name)
         node.qualname = '.'.join(new_parents)
     else:
+        if node.__class__.__name__ == 'Module':
+            # todo: how do we want to handle module names?  If we use the name of the module, (a) that will get prepended
+            # to all child nodes, (b) that implies a path from Python code, which is dependent on a particular sys.path.
+            node.qualname = '<module>'
         new_parents = parents
 
     for i in ast.iter_child_nodes(node):
