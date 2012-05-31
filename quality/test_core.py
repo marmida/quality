@@ -159,6 +159,32 @@ def test_extract_line_nums():
         quality.crap.extract_line_nums(doc, 'non-existent-file')
     assert_equal('couldn\'t find coverage data for source file "non-existent-file" in coverage.xml document', assert_context.exception.args[0])
 
+
+def test_extract_judge_kwargs():
+    assert_equal({}, quality.core.extract_judge_kwargs('hello', {}))
+    assert_equal(
+        {}, 
+        quality.core.extract_judge_kwargs(
+            'hello', 
+            {'goodbye:something': 1}
+        )
+    )
+    assert_equal(
+        {
+            'thing': 1,
+            'otherthing': 2,
+        }, 
+        quality.core.extract_judge_kwargs(
+            'hello', 
+            {
+                'goodbye:something': 1,
+                'goodbye:somethingelse': 2,
+                'hello:thing': 1,
+                'hello:otherthing': 2,
+            }
+        )
+    )
+
 @mock.patch('__builtin__.open', spec=file)
 @mock.patch('ast.parse')
 @mock.patch('xml.etree.ElementTree.parse')
@@ -190,7 +216,7 @@ def test_run_contest(etree_parse, ast_parse, mock_open):
     judge.name = 'mock_judge_name'
 
     src_path = '/path/to/src.py'
-    result = quality.core.run_contest([src_path], {}, 'mock_judge_name', [judge])
+    result = quality.core.run_contest([src_path], {}, '2*mock_judge_name', [judge])
 
     mock_open.assert_called_once_with(src_path)
     mock_open.read.assert_called_once()
@@ -209,3 +235,5 @@ def test_run_contest(etree_parse, ast_parse, mock_open):
             ]
         }
     )
+    assert_equal(4, contestant_a.final_score)
+    assert_equal(2, contestant_b.final_score)

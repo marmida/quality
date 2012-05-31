@@ -5,9 +5,7 @@ Code quality analysis for Python.
 # general module todo: what about lambdas?
 
 import ast
-import xml.etree.ElementTree # todo: this might be xml.etree; check out the venv
 import operator
-import os.path
 
 # ###
 # Our concept of "qualified name" : http://www.python.org/dev/peps/pep-3155/
@@ -113,6 +111,17 @@ class Contestant(object):
         self.scores = None
         self.final_score = None
 
+def extract_judge_kwargs(judge_name, kwargs):
+    '''
+    filter a dict, returning only keys that start with `judge_name`, followed by a colon.
+
+    The result contains keys with this prefix stripped.
+    '''
+    prefix = judge_name + ':'
+
+    filtered = dict((k[len(prefix):], v) for k, v in kwargs.iteritems() if k.startswith(prefix))
+    return filtered
+
 def run_contest(src_paths, options, formula, recruited_judges):
     '''
     Discover contestants inside each of the source files, and 
@@ -136,7 +145,7 @@ def run_contest(src_paths, options, formula, recruited_judges):
         contestants = find_contestants(src_tree)
 
         for contestant in contestants:
-            contestant.scores = dict((judge.name, judge(contestant, **judge.extract_kwargs(options))) for judge in recruited_judges)
+            contestant.scores = dict((judge.name, judge(contestant, **extract_judge_kwargs(judge.name, options))) for judge in recruited_judges)
             context = contestant.scores.copy()
             # import pdb; pdb.set_trace()
             context['__builtins__'] = __builtins__
