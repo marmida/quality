@@ -55,6 +55,11 @@ def calc_coverage_ratio(def_lines, hit_lines):
 
 @quality.dec.judge('crap')
 def judge_crap(contestant, coverage_file=None):
+    # todo: this is really suboptimal; we're re-parsing coverage.xml and 
+    # re-calculating hit and miss lines for each contestant in each file
+    # instead: allow each judge a chance to inspect each module before getting
+    # to each contestant?
+
     # digest coverage.xml
     coverage_doc = xml.etree.ElementTree.parse(coverage_file)
     hit_lines, missed_lines = extract_line_nums(coverage_doc, src_path)
