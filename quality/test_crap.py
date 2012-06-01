@@ -12,57 +12,6 @@ def test_calc_coverage_ratio():
     assert_equal(1.0, quality.crap.calc_coverage_ratio([], set([])))
 
 
-def test_CCAnnotator():
-    tree = ast.parse('''
-def function_a():
-    pass
-
-def function_b():
-    if True == False:
-        pass
-
-def function_c():
-    for i in range(3):
-        pass
-    while True:
-        pass
-    if True and True and True or True:
-        pass
-        ''')
-    quality.crap.CCAnnotator().visit(tree)
-    assert_equal(0, tree.complexity) # shouldn't this be 1?  There is one path through a module with no code in it.
-    assert_equal(1, tree.body[0].complexity)
-    assert_equal(2, tree.body[1].complexity)
-    assert_equal(6, tree.body[2].complexity)
-
-    # test nesting
-    tree = ast.parse('''
-def outer():
-    if True == False:
-        def inner():
-            pass
-''')
-    quality.crap.CCAnnotator().visit(tree)
-    assert_equal(0, tree.complexity)
-    assert_equal(2, tree.body[0].complexity)
-    assert_equal(1, tree.body[0].body[0].body[0].complexity)
-
-    # test module- and class-level complexity
-    tree = ast.parse('''
-if True == False:
-    pass
-
-class Hello(object):
-    if True == False:
-        pass
-    def method_a(self):
-        pass
-''')
-    quality.crap.CCAnnotator().visit(tree)
-    assert_equal(1, tree.complexity)
-    assert_equal(2, tree.body[1].complexity)
-    assert_equal(1, tree.body[1].body[1].complexity)
-
 def test_extract_line_nums():
     doc = xml.etree.ElementTree.ElementTree(element=xml.etree.ElementTree.fromstring('''<?xml version="1.0" ?>
 <!DOCTYPE coverage
