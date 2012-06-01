@@ -145,7 +145,7 @@ def run_contest(src_paths, options, formula, recruited_judges):
         contestants = find_contestants(src_tree)
 
         for contestant in contestants:
-            contestant.scores = dict((judge.name, judge(contestant, **extract_judge_kwargs(judge.name, options))) for judge in recruited_judges)
+            contestant.scores = dict((judge._quality_judge_name, judge(contestant, **extract_judge_kwargs(judge._quality_judge_name, options))) for judge in recruited_judges)
             context = contestant.scores.copy()
             # import pdb; pdb.set_trace()
             context['__builtins__'] = __builtins__
@@ -164,5 +164,5 @@ def load_judges():
     '''
     import quality.crap
     
-    return [quality.crap.CrapJudge()]
+    return [quality.crap.judge_crap]
 

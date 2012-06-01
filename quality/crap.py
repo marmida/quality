@@ -5,6 +5,7 @@ For background on C.R.A.P., see http://www.artima.com/weblogs/viewpost.jsp?threa
 '''
 
 import ast
+import quality.dec
 
 def gen_class_elems(doc):
     '''
@@ -52,23 +53,20 @@ def calc_coverage_ratio(def_lines, hit_lines):
         return 1.0
     return float(len(frozenset(def_lines) & hit_lines)) / len(def_lines)
 
+@quality.dec.judge('crap')
+def judge_crap(contestant, coverage_file=None):
+    # digest coverage.xml
+    coverage_doc = xml.etree.ElementTree.parse(coverage_file)
+    hit_lines, missed_lines = extract_line_nums(coverage_doc, src_path)
 
-class CrapJudge(object):
-    name = 'crap'
+    complexity = quality.complexity.visit(contestant.node)
 
-    def __call__(contestant, coverage_file=None):
-        # digest coverage.xml
-        coverage_doc = xml.etree.ElementTree.parse(coverage_file)
-        hit_lines, missed_lines = extract_line_nums(coverage_doc, src_path)
+    # reconcile line number differences between cPython and the ast module
+    fix_line_nums(src_tree, hit_lines)
+    fix_line_nums(src_tree, missed_lines)
 
-        complexity = quality.complexity.visit(contestant.node)
-
-        # reconcile line number differences between cPython and the ast module
-        fix_line_nums(src_tree, hit_lines)
-        fix_line_nums(src_tree, missed_lines)
-
-        cov_ratio = calc_coverage_ratio(contestant.linenums, hit_lines)
-        return (complexity ** 2) * (1 - cov_ratio) + complexity
+    cov_ratio = calc_coverage_ratio(contestant.linenums, hit_lines)
+    return (complexity ** 2) * (1 - cov_ratio) + complexity
 
 
 class CCAnnotator(object):

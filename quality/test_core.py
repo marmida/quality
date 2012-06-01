@@ -213,7 +213,7 @@ def test_run_contest(etree_parse, ast_parse, mock_open):
         return qualities[contestant.name]
 
     judge = mock.MagicMock(side_effect=mock_judge)
-    judge.name = 'mock_judge_name'
+    judge._quality_judge_name = 'mock_judge_name'
 
     src_path = '/path/to/src.py'
     result = quality.core.run_contest([src_path], {}, '2*mock_judge_name', [judge])
