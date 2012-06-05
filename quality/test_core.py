@@ -114,11 +114,11 @@ class C:
 ''')
     add_missing_attribs(tree)
 
-    contestants = quality.core.find_contestants(tree)
+    contestants = quality.core.find_contestants(tree, 'source.py')
     assert_equal(5, len(contestants))
     assert_equal(['Module', 'ClassDef', 'FunctionDef', 'FunctionDef', 'FunctionDef'],
         [i.node.__class__.__name__ for i in contestants])
-    
+    assert_equal(5, [contestant.src_file for contestant in contestants].count('source.py'))
 
 def test_extract_judge_kwargs():
     assert_equal({}, quality.core.extract_judge_kwargs('hello', {}))
@@ -184,7 +184,7 @@ def test_run_contest(etree_parse, ast_parse, mock_open):
     ast_parse.assert_called_once()
     quality.core.annotate_qualnames.assert_called_once_with(ast_parse.return_value)
     quality.core.annotate_linenums.assert_called_once_with(ast_parse.return_value)
-    quality.core.find_contestants.assert_called_once_with(ast_parse.return_value)
+    quality.core.find_contestants.assert_called_once_with(ast_parse.return_value, src_path)
     
     assert_equal(
         result,

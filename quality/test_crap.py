@@ -1,16 +1,62 @@
 import quality.crap
 
 import ast
+import mock
 from nose.tools import *
 import xml.etree.ElementTree
 
 
-def test_calc_coverage_ratio():
-    assert_equal(0.5, quality.crap.calc_coverage_ratio([5, 6, 15, 16], set([15, 16])))
-    assert_equal(0.0, quality.crap.calc_coverage_ratio([4, 5, 6], set([1, 2, 3])))
-    # checking for divide-by-zero
-    assert_equal(1.0, quality.crap.calc_coverage_ratio([], set([])))
+def test_contestant_align_linenums():
+    def execute(expected, contestant_lines, coverage_lines):
+        # set-ify everything
+        expected = set(expected)
+        contestant_lines = set(contestant_lines)
+        coverage_lines = {
+            'foo.py': set(coverage_lines)
+        }
 
+        j = quality.crap.CrapJudge()
+        j.unified = coverage_lines
+        contestant = mock.MagicMock(linenums=contestant_lines, src_file='foo.py')
+
+        assert_equal(expected, j.align_linenums(contestant))
+
+    args_ls = [
+        # obvious cases
+        ([], [], []),
+        ([1, 2, 3], [1, 2, 3], [1, 2, 3]),
+
+        # coverage.xml lists one of a multi-line statement, for which we have multiple lines
+        ([2], [1, 2, 3], [2]),
+    ]
+
+def test_contestant_coverage_ratio():
+    def execute(expected, hit, miss, contestant_lines):
+        # set-ify everything
+        hit = set(hit)
+        miss = set(miss)
+        contestant_lines = set(contestant_lines)
+
+        j = quality.crap.CrapJudge()
+        j.align_linenums = mock.MagicMock()
+        j.align_linenums.return_value = contestant_lines
+        j.coverage['foo.py'] = (hit, miss)
+        j.unified['foo.py'] = hit | miss
+
+        contestant = mock.MagicMock(linenums=contestant_lines, src_file='foo.py')
+
+        assert_equal(expected, j.coverage_ratio(contestant))
+        if contestant_lines:
+            j.align_linenums.assert_called_once_with(contestant)
+
+    args_ls = [
+        (0.5, [15, 16], [5, 6], [5, 6, 15, 16]),
+        (0.0, [4, 5, 6], [], [1, 2, 3]),
+        # checking for divide-by-zero
+        (1.0, [], [], []),
+    ]
+    for args in args_ls:
+        execute(*args)
 
 def test_extract_line_nums():
     doc = xml.etree.ElementTree.ElementTree(element=xml.etree.ElementTree.fromstring('''<?xml version="1.0" ?>

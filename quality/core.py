@@ -72,18 +72,21 @@ def annotate_qualnames(node, parents=None):
     for i in ast.iter_child_nodes(node):
         annotate_qualnames(i, new_parents)
 
-def find_contestants(node):
+def find_contestants(node, src_path):
     '''
     Return a list of Contestants representing qualifying nodes:
     Modules, ClassDefs, and FunctionDefs
+
+    - `node` - ast node
+    - `src_path` - filename of the original source
     '''
     ret = []
 
     if node.__class__.__name__ in ['Module', 'ClassDef', 'FunctionDef']:
-        ret.append(Contestant(node))
+        ret.append(Contestant(node, src_path))
         
     for child in ast.iter_child_nodes(node):
-        ret += find_contestants(child)
+        ret += find_contestants(child, src_path)
 
     return ret
 
@@ -103,13 +106,15 @@ class Contestant(object):
     * linenums - set of line numbers not contained under a child Contestant
     * scorecards - scores from each indivdual judge
     * final_score - combined score from all judges
+    * src_file - path to the source file defining this Contestant
     '''
-    def __init__(self, node):
+    def __init__(self, node, src_file):
         self.node = node
-        self.name = node.qualname
+        self.name = getattr(node, 'qualname', '<module>')
         self.linenums = node.descendant_lines
         self.scores = None
         self.final_score = None
+        self.src_file = src_file
 
 def extract_judge_kwargs(judge_name, kwargs):
     '''
@@ -142,7 +147,7 @@ def run_contest(src_paths, options, formula, recruited_judges):
         annotate_linenums(src_tree)
 
         # build a list of contestants
-        contestants = find_contestants(src_tree)
+        contestants = find_contestants(src_tree, src_path)
 
         for contestant in contestants:
             contestant.scores = dict((judge._quality_judge_name, judge(contestant, **extract_judge_kwargs(judge._quality_judge_name, options))) for judge in recruited_judges)
@@ -164,5 +169,5 @@ def load_judges():
     '''
     import quality.crap
     
-    return [quality.crap.judge_crap]
+    return [quality.crap.CrapJudge().judge]
 
