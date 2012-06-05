@@ -6,21 +6,23 @@ from nose.tools import *
 import xml.etree.ElementTree
 
 
-def test_contestant_align_linenums():
-    def execute(expected, contestant_lines, coverage_lines):
-        # set-ify everything
-        expected = set(expected)
-        contestant_lines = set(contestant_lines)
-        coverage_lines = {
-            'foo.py': set(coverage_lines)
-        }
+def _crapjudge_align_linenums(expected, contestant_lines, coverage_lines):
+    'run one test of CrapJudge.align_linenums'
+    # set-ify everything
+    expected = set(expected)
+    contestant_lines = set(contestant_lines)
+    coverage_lines = {
+        'foo.py': set(coverage_lines)
+    }
 
-        j = quality.crap.CrapJudge()
-        j.unified = coverage_lines
-        contestant = mock.MagicMock(linenums=contestant_lines, src_file='foo.py')
+    j = quality.crap.CrapJudge()
+    j.unified = coverage_lines
+    contestant = mock.MagicMock(linenums=contestant_lines, src_file='foo.py')
 
-        assert_equal(expected, j.align_linenums(contestant))
+    assert_equal(expected, j.align_linenums(contestant))
 
+def test_gen_crapjudge_align_linenums():
+    'CrapJudge.align_linenums: filters out linenums not in coverage.xml'
     args_ls = [
         # obvious cases
         ([], [], []),
@@ -30,25 +32,11 @@ def test_contestant_align_linenums():
         ([2], [1, 2, 3], [2]),
     ]
 
-def test_contestant_coverage_ratio():
-    def execute(expected, hit, miss, contestant_lines):
-        # set-ify everything
-        hit = set(hit)
-        miss = set(miss)
-        contestant_lines = set(contestant_lines)
+    for args in args_ls:
+        yield (_crapjudge_align_linenums,) + args
 
-        j = quality.crap.CrapJudge()
-        j.align_linenums = mock.MagicMock()
-        j.align_linenums.return_value = contestant_lines
-        j.coverage['foo.py'] = (hit, miss)
-        j.unified['foo.py'] = hit | miss
-
-        contestant = mock.MagicMock(linenums=contestant_lines, src_file='foo.py')
-
-        assert_equal(expected, j.coverage_ratio(contestant))
-        if contestant_lines:
-            j.align_linenums.assert_called_once_with(contestant)
-
+def test_gen_crapjudge_coverage_ratio():
+    'CrapJudge.coverage_ratio: correctly calculates coverage ratio'
     args_ls = [
         (0.5, [15, 16], [5, 6], [5, 6, 15, 16]),
         (0.0, [4, 5, 6], [], [1, 2, 3]),
@@ -56,9 +44,32 @@ def test_contestant_coverage_ratio():
         (1.0, [], [], []),
     ]
     for args in args_ls:
-        execute(*args)
+        yield (_crapjudge_coverage_ratio,) + args
+    
+def _crapjudge_coverage_ratio(expected, hit, miss, contestant_lines):
+    'Runs one test of CrapJudge.coverage ratio'
+    # set-ify everything
+    hit = set(hit)
+    miss = set(miss)
+    contestant_lines = set(contestant_lines)
+
+    j = quality.crap.CrapJudge()
+    j.align_linenums = mock.MagicMock()
+    j.align_linenums.return_value = contestant_lines
+    j.coverage['foo.py'] = (hit, miss)
+    j.unified['foo.py'] = hit | miss
+
+    contestant = mock.MagicMock(linenums=contestant_lines, src_file='foo.py')
+
+    assert_equal(expected, j.coverage_ratio(contestant))
+    if contestant_lines:
+        j.align_linenums.assert_called_once_with(contestant)
+
+def test_crapjudge_judge_crap():
+    pass
 
 def test_extract_line_nums():
+    'extract_line_nums: correctly splits hit and missed lines, per file'
     doc = xml.etree.ElementTree.ElementTree(element=xml.etree.ElementTree.fromstring('''<?xml version="1.0" ?>
 <!DOCTYPE coverage
   SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-03.dtd'>
