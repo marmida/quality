@@ -6,6 +6,7 @@ For background on C.R.A.P., see http://www.artima.com/weblogs/viewpost.jsp?threa
 
 import ast
 import quality.dec
+import xml.etree.ElementTree
 
 def gen_class_elems(doc):
     '''
@@ -60,7 +61,7 @@ class CrapJudge(object):
     '''
     def __init__(self):
         self.coverage = {}
-        self.unified = {}
+        self.unified = {} # todo: turn this into a property that dynamically combines the hit and miss sets on the fly
         
     def coverage_ratio(self, contestant):
         '''
@@ -97,14 +98,20 @@ class CrapJudge(object):
     @quality.dec.judge('crap')
     def judge_crap(self, contestant, coverage_file=None):
         '''
+        Return the C.R.A.P. score for a Contestant.
+
+        Arguments:
+        * `contestant` - a Contestant
+        * `coverage_file` - path to, or file object representing, the coverage.xml document
         '''
-        if contestant.src_path not in self.coverage:
-            coverage_doc = xml.etree.ElementTree.parse(coverage_file)
-            hit, miss = extract_line_nums(coverage_doc, src_file)
-            self.coverage[src_file] = (hit, miss)
-            self.unified[src_file] = hit | miss
-    
         complexity = quality.complexity.complexity(contestant.node)
-        cov_ratio = self.coverage_ratio(contestant, hit_lines)
+        
+        if contestant.src_file not in self.coverage:
+            # we haven't yet cached coverage info for this module; do so now
+            coverage_doc = xml.etree.ElementTree.parse(coverage_file)
+            hit, miss = extract_line_nums(coverage_doc, contestant.src_file)
+            self.coverage[contestant.src_file] = (hit, miss)
+            self.unified[contestant.src_file] = hit | miss
+        cov_ratio = self.coverage_ratio(contestant)
 
         return (complexity ** 2) * (1 - cov_ratio) + complexity

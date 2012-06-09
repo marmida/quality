@@ -1,3 +1,4 @@
+import quality.core
 import quality.crap
 
 import ast
@@ -65,8 +66,94 @@ def _crapjudge_coverage_ratio(expected, hit, miss, contestant_lines):
     if contestant_lines:
         j.align_linenums.assert_called_once_with(contestant)
 
-def test_crapjudge_judge_crap():
-    pass
+def _test_crapjudge_judge_crap_cached(mock_complexity_ret, mock_cov_ratio_ret, expected):
+    'run one test over CrapJudge.judge_crap, in which coverage data is already cached'
+    mock_node = mock.MagicMock(name='node')
+    contestant = mock.MagicMock(spec=quality.core.Contestant, linenums=set([1, 2, 3]), 
+        src_file='foo.py', node=mock_node)
+    judge = quality.crap.CrapJudge()
+
+    # line numbers in the coverage data cache don't matter, just that they exist.
+    judge.coverage = {
+        'foo.py': (set([1, 2, 3]), set()),
+        'bar.py': (set([4, 5, 6]), set()),
+    }
+    judge.unified = {
+        'foo.py': set([1, 2, 3]),
+        'bar.py': judge.coverage['bar.py'][0],
+    }
+    judge.coverage_ratio = mock.MagicMock(return_value=mock_cov_ratio_ret)
+    
+    # create a mock for parse that should not be called
+    tripwire_etree_parse = mock.patch('xml.etree.ElementTree.parse', 
+        name='tripwire_etree_parse',
+        side_effect=Exception('judge_crap attempted to re-parse XML; should have used cached data instead')
+    )
+
+    with tripwire_etree_parse:
+        with mock.patch('quality.complexity.complexity', return_value=mock_complexity_ret):
+            assert_equal(expected, judge.judge_crap(contestant, coverage_file='coverage.xml'))
+            quality.complexity.complexity.assert_called_once_with(mock_node)
+            judge.coverage_ratio.assert_called_once_with(contestant)
+
+def test_gen_crapjudge_judge_crap_cached():
+    'CrapJudge.judge_crap: uses cached coverage info to calculate scores'
+    args_ls = [
+        # trials that should not attempt to re-parse data
+        (4, 1.0, 4),
+        (4, 0.5, 12),
+    ]
+
+    for args in args_ls:
+        yield (_test_crapjudge_judge_crap_cached,) + args
+
+def _test_crapjudge_judge_crap_uncached(mock_complexity_ret, mock_cov_ratio_ret, expected):
+    '''
+    Run one test over CrapJudge.judge_crap, in which coverage data isn't cached.
+
+    Yes, this repeats a lot of the code in _test_crapjudge_judge_crap_cached, but
+    I'm less opposed to copy-pasta than complication in test fixtures.
+    '''
+    mock_node = mock.MagicMock(name='node')
+    contestant = mock.MagicMock(spec=quality.core.Contestant, linenums=set([1, 2, 3]), 
+        src_file='foo.py', node=mock_node)
+    judge = quality.crap.CrapJudge()
+
+    # line numbers in the coverage data cache don't matter, just that they exist.
+    judge.coverage = {
+        'bar.py': (set([4, 5, 6]), set()),
+    }
+    judge.unified = {
+        'bar.py': judge.coverage['bar.py'][0],
+    }
+    judge.coverage_ratio = mock.MagicMock(return_value=mock_cov_ratio_ret)
+    
+    # create a mock for the (hit, miss) line number sets
+    mock_union = mock.MagicMock(name='union')
+    mock_hit = mock.MagicMock(name='mock_hit')
+    mock_miss = mock.MagicMock(name='mock_miss')
+    mock_hit.__or__ = mock.MagicMock(return_value=mock_union)
+
+    with mock.patch('xml.etree.ElementTree.parse', name='mock_etree_parse') as mock_etree_parse:
+        with mock.patch('quality.complexity.complexity', return_value=mock_complexity_ret):
+            with mock.patch('quality.crap.extract_line_nums', return_value=(mock_hit, mock_miss)):
+                assert_equal(expected, judge.judge_crap(contestant, coverage_file='coverage.xml'))
+                quality.complexity.complexity.assert_called_once_with(mock_node)
+                judge.coverage_ratio.assert_called_once_with(contestant)
+                mock_etree_parse.assert_called_once_with('coverage.xml')
+                assert_equal((mock_hit, mock_miss), judge.coverage['foo.py'])
+                assert_equal(mock_union, judge.unified['foo.py'])
+
+def test_gen_crapjudge_judge_crap_uncached():
+    'CrapJudge.judge_crap: populates coverage data cache and calculates scores'
+    args_ls = [
+        # trials that should not attempt to re-parse data
+        (4, 1.0, 4),
+        (4, 0.5, 12),
+    ]
+
+    for args in args_ls:
+        yield (_test_crapjudge_judge_crap_uncached,) + args
 
 def test_extract_line_nums():
     'extract_line_nums: correctly splits hit and missed lines, per file'
