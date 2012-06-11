@@ -186,14 +186,7 @@ def test_run_contest(etree_parse, ast_parse, mock_open):
     quality.core.annotate_linenums.assert_called_once_with(ast_parse.return_value)
     quality.core.find_contestants.assert_called_once_with(ast_parse.return_value, src_path)
     
-    assert_equal(
-        result,
-        {
-            '/path/to/src.py': [
-                contestant_b,
-                contestant_a,
-            ]
-        }
-    )
+    assert_equal(result.keys(), ['/path/to/src.py'])
+    assert_equal(set(result['/path/to/src.py']), set([contestant_b, contestant_a]))
     assert_equal(4, contestant_a.final_score)
     assert_equal(2, contestant_b.final_score)

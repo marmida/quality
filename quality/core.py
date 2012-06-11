@@ -5,7 +5,6 @@ Code quality analysis for Python.
 # general module todo: what about lambdas?
 
 import ast
-import operator
 
 # ###
 # Our concept of "qualified name" : http://www.python.org/dev/peps/pep-3155/
@@ -134,7 +133,8 @@ def run_contest(src_paths, options, formula, recruited_judges):
     calculate the final, combined score for each contestant, using the 
     provided formula.
 
-    Returns a list of contestants in order of final score.
+    Returns a dictionary mapping source filenames to a list of 
+    contestants contained in that file.  The contestants are unordered.
     '''
     results = {}
 
@@ -156,7 +156,6 @@ def run_contest(src_paths, options, formula, recruited_judges):
             context['__builtins__'] = __builtins__
             contestant.final_score = eval(formula, context)
 
-        contestants.sort(key=operator.itemgetter('final_score'))
         results[src_path] = contestants
 
     return results
