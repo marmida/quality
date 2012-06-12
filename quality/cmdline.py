@@ -82,5 +82,6 @@ def main():
 
     # todo: allow for different types of reporters, and to get configuration options to them
 
-    reporter = quality.report.PrintReporter()
-    reporter.report(results)
+    reporters = [quality.report.print_report]
+    for reporter in reporters:
+        reporter(results)
