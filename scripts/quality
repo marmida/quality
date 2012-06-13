@@ -1,0 +1,6 @@
+#!/bin/python 
+
+import quality.cmdline
+
+if __name__ == '__main__':
+    quality.cmdline.main()

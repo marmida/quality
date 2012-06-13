@@ -4,8 +4,11 @@ Calculate C.R.A.P. scores for Python modules.
 For background on C.R.A.P., see http://www.artima.com/weblogs/viewpost.jsp?thread=215899
 '''
 
-import ast
 import quality.dec
+import quality.complexity
+
+
+import ast
 import xml.etree.ElementTree
 
 def gen_class_elems(doc):

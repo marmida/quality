@@ -168,5 +168,5 @@ def load_judges():
     '''
     import quality.crap
     
-    return [quality.crap.CrapJudge().judge]
+    return [quality.crap.CrapJudge().judge_crap]
 
