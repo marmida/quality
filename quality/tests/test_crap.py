@@ -4,6 +4,8 @@ import quality.crap
 import ast
 import mock
 from nose.tools import *
+import os
+import os.path
 import xml.etree.ElementTree
 
 
@@ -155,6 +157,55 @@ def test_gen_crapjudge_judge_crap_uncached():
     for args in args_ls:
         yield (_test_crapjudge_judge_crap_uncached,) + args
 
+def _test_find_class_elem(doc, source_path, coverage_file, expected_elem_name):
+    actual = quality.crap.find_class_elem(doc, source_path, coverage_file)
+    assert_equal(actual.get('name'), expected_elem_name)
+
+def test_find_class_elem():
+    'find_class_elem: identifies the correct <class> element using either relative and absolute paths'
+    doc = xml.etree.ElementTree.ElementTree(element=xml.etree.ElementTree.fromstring('''<?xml version="1.0" ?>
+<!DOCTYPE coverage
+  SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-03.dtd'>
+<coverage>
+    <packages>
+        <package>
+            <classes>
+                <class filename="/tmp/something_a.py" name="something_a"/>
+                <class filename="/tmp/something_b.py" name="something_b"/>
+            </classes>
+        </package>
+        <package>
+            <classes>
+                <class filename="something_c.py" name="something_c"/>
+                <class filename="src/something_d.py" name="something_d"/>
+            </classes>
+        </package>
+    </packages>
+</coverage>'''))
+
+    args_ls = [
+        # absolute paths should work
+        (doc, '/tmp/something_a.py', 'coverage.xml', 'something_a'),
+        (doc, '/tmp/something_b.py', '/tmp/something/else/coverage.xml', 'something_b'),
+        # relative path combinations in which coverage.xml and the source file are in the same dir
+        (doc, 'src/something_c.py', 'src/coverage.xml', 'something_c'),
+        (doc, 'something_c.py', 'coverage.xml', 'something_c'),
+        (doc, 'src/something_c.py', './src/coverage.xml', 'something_c'),
+        (doc, './src/something_c.py', 'src/coverage.xml', 'something_c'),
+        # relative path combinations in which coverage.xml and the source file are in different dirs
+        (doc, 'src/something_d.py', 'coverage.xml', 'something_d'),
+        (doc, 'src/something_d.py', './coverage.xml', 'something_d'),
+        (doc, './src/something_d.py', 'coverage.xml', 'something_d'),
+        # (doc, 'something_d.py', '../coverage.xml', 'something_d'), # not certain about this case; 
+        # it probably should be allowed
+    ]
+    for args in args_ls:
+        yield (_test_find_class_elem,) + args
+
+    with assert_raises(ValueError) as assert_context:
+        quality.crap.find_class_elem(doc, 'non-existent-file', '/tmp/coverage.xml')
+    assert_equal('couldn\'t find coverage data for source file "non-existent-file" in coverage.xml document', assert_context.exception.args[0])
+
 def test_extract_line_nums():
     'extract_line_nums: correctly splits hit and missed lines, per file'
     doc = xml.etree.ElementTree.ElementTree(element=xml.etree.ElementTree.fromstring('''<?xml version="1.0" ?>
@@ -189,8 +240,5 @@ def test_extract_line_nums():
     </packages>
 </coverage>'''))
 
-    assert_equal((set([7, 9]), set([8])), quality.crap.extract_line_nums(doc, '/tmp/something_a.py'))
-    assert_equal((set([8, 9]), set([7])), quality.crap.extract_line_nums(doc, '/usr/lib/python2.7/site-packages/something_b.py'))
-    with assert_raises(ValueError) as assert_context:
-        quality.crap.extract_line_nums(doc, 'non-existent-file')
-    assert_equal('couldn\'t find coverage data for source file "non-existent-file" in coverage.xml document', assert_context.exception.args[0])
+    assert_equal((set([7, 9]), set([8])), quality.crap.extract_line_nums(doc, '/tmp/something_a.py', 'coverage.xml'))
+    assert_equal((set([8, 9]), set([7])), quality.crap.extract_line_nums(doc, '/usr/lib/python2.7/site-packages/something_b.py', 'coverage.xml'))

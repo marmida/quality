@@ -9,6 +9,7 @@ import quality.complexity
 
 
 import ast
+import os.path
 import xml.etree.ElementTree
 
 def gen_class_elems(doc):
@@ -19,19 +20,50 @@ def gen_class_elems(doc):
         for class_elem in package_elem[0]:
             yield class_elem
 
-def extract_line_nums(doc, source_path):
+def find_class_elem(doc, source_path, coverage_file):
     '''
-    Extract a two sets of line numbers from coverage.xml: "hit" and "missed" lines.
-    
-    `doc` - etree-style document representing coverage.xml
-    `source_path` - the path to the file under test
+    Return the <class> element inside the XML document `doc` that contains the 
+    coverage data for the file `source_path`.
+
+    The 'coverage' command provides the 'filename' attribute to 'class' 
+    elements, but it can contain a relative path, depending on the invocation of
+    the 'coverage' command.
+
+    Because of this, we need to line up three paths: (1) the path to coverage.xml,
+    (2) paths to source files referenced by coverage.xml, and (3) the path to 
+    the source file.  We assume that coverage.xml paths are relative to the 
+    directory containing coverage.xml.
+
+    Args:
+    * `doc` - etree-style document representing coverage.xml
+    * `source_path` - the path to the python module being scored
+    * `coverage_file` - path to, or file object representing, the coverage.xml document
     '''
+    abs_source_path = os.path.abspath(source_path)
+    # ensure coverage_file is a path
+    if isinstance(coverage_file, file):
+        # allow AttributeErrors if coverage_file is a file that doesn't support names
+        coverage_file = coverage_file.name
+    coverage_dir = os.path.dirname(coverage_file)
+
     for class_elem in gen_class_elems(doc):
-        if class_elem.get('filename') == source_path:
+        print os.path.abspath(os.path.join(coverage_dir, class_elem.get('filename'))), abs_source_path
+        if os.path.abspath(os.path.join(coverage_dir, class_elem.get('filename'))) == abs_source_path:
             break
     else:
         raise ValueError('couldn\'t find coverage data for source file "%s" in coverage.xml document' % source_path)
+    return class_elem
 
+def extract_line_nums(doc, source_path, coverage_file):
+    '''
+    Extract a two sets of line numbers from coverage.xml: "hit" and "missed" lines.
+    
+    * `doc` - etree-style document representing coverage.xml
+    * `source_path` - the path to the python module being scored
+    * `coverage_file` - path to, or file object representing, the coverage.xml document
+    '''
+    class_elem = find_class_elem(doc, source_path, coverage_file)
+    
     hit_lines = set()
     missed_lines = set()
     for line_elem in class_elem[1]:
@@ -112,7 +144,7 @@ class CrapJudge(object):
         if contestant.src_file not in self.coverage:
             # we haven't yet cached coverage info for this module; do so now
             coverage_doc = xml.etree.ElementTree.parse(coverage_file)
-            hit, miss = extract_line_nums(coverage_doc, contestant.src_file)
+            hit, miss = extract_line_nums(coverage_doc, contestant.src_file, coverage_file)
             self.coverage[contestant.src_file] = (hit, miss)
             self.unified[contestant.src_file] = hit | miss
         cov_ratio = self.coverage_ratio(contestant)
