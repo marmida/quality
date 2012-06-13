@@ -65,6 +65,15 @@ def write_minimal_columns(chart, output):
     text_chart = []
     for row in chart:
         text_chart.append(['%.3f' % col if type(col) == float else str(col) for col in row])
+
+    if len(chart) > 1:
+        # scan the second row (first data row) for data types to determine 
+        # column justifications.
+        # build a list of bools, True if right, False if left
+        justify = [type(cell) in [int, float, complex, long] for cell in chart[1]]
+    else:
+        # second row doesn't exist, then justification doesn't matter; just assume all lefts
+        justify = [False] * len(chart[0])
     
     # find the longest cell in each column; make a list, indexed by column
     max_len = []
@@ -74,7 +83,7 @@ def write_minimal_columns(chart, output):
     # overwrite text_chart cell values with justified padding
     for i, row in enumerate(text_chart):
         for j, cell in enumerate(row):
-            justifier = cell.rjust if type(chart[i][j]) in [int, float, complex, long] else cell.ljust
+            justifier = cell.rjust if justify[j] else cell.ljust
             text_chart[i][j] = justifier(max_len[j])
 
     for row in text_chart:

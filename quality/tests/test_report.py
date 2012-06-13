@@ -43,10 +43,12 @@ hello  goodbye  goodnight
         ),
         (
             [
+                ['Name', 'Ego', 'Id'],
                 ['ab', 123, 4],
                 ['cdef', 42, 424242],
             ],
             '''\
+Name  Ego      Id
 ab    123       4
 cdef   42  424242
 '''
