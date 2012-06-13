@@ -4,6 +4,12 @@ Things that generate reports from the results of a quality contest.
 
 import sys
 
+def contestant_list(results):
+    'yield a dict of lists as (key, list_elem) tuples'
+    for src_file, contestant_list in results.iteritems():
+        for contestant in contestant_list:
+            yield src_file, contestant
+
 def print_report(results):
     '''
     Print the results via stdout.
@@ -11,13 +17,18 @@ def print_report(results):
     todo: pass in the output stream as an argument, so it can be overriden
     this would currently change the protocol for reporters
     '''
+    if len(results) == 0:
+        return
+
+    # sort contestants by final score
+    sorted_contestants = sorted(contestant_list(results), key=lambda x: x[1].final_score, reverse=True)
+
     # get a list of judge names from the first result item
     judge_names = results.itervalues().next()[0].scores.keys()
 
-    chart = ['File', 'Item'] + judge_names + ['Final']
-    for src_path, contestants in results.iteritems():
-        for contestant in contestants:
-            chart.append([src_path, contestant.name] + ordered_scores(contestant.scores, judge_names) + [contestant.final_score])
+    chart = [['File', 'Item'] + judge_names + ['Final']]
+    for src_path, contestant in sorted_contestants:
+        chart.append([src_path, contestant.name] + ordered_scores(contestant.scores, judge_names) + [contestant.final_score])
 
     write_minimal_columns(chart, sys.stdout)
 
