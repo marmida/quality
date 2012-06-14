@@ -111,12 +111,12 @@ class CrapJudge(object):
 
         Returns a float.
         '''
-        if len(contestant.linenums) == 0:
+        fixed_lines = self.align_linenums(contestant)
+
+        if len(fixed_lines) == 0:
             # if a def has no lines, we'll call it 100% covered.
             return 1.0
 
-        fixed_lines = self.align_linenums(contestant)
-        
         return float(len(fixed_lines & self.coverage[contestant.src_file][0])) / len(fixed_lines)
 
     def align_linenums(self, contestant):
