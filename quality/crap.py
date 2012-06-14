@@ -10,6 +10,7 @@ import quality.complexity
 
 import ast
 import os.path
+import warnings
 import xml.etree.ElementTree
 
 def gen_class_elems(doc):
@@ -23,7 +24,7 @@ def gen_class_elems(doc):
 def find_class_elem(doc, source_path, coverage_file):
     '''
     Return the <class> element inside the XML document `doc` that contains the 
-    coverage data for the file `source_path`.
+    coverage data for the file `source_path`.  If not found, return None.
 
     The 'coverage' command provides the 'filename' attribute to 'class' 
     elements, but it can contain a relative path, depending on the invocation of
@@ -47,11 +48,10 @@ def find_class_elem(doc, source_path, coverage_file):
     coverage_dir = os.path.dirname(coverage_file)
 
     for class_elem in gen_class_elems(doc):
-        print os.path.abspath(os.path.join(coverage_dir, class_elem.get('filename'))), abs_source_path
         if os.path.abspath(os.path.join(coverage_dir, class_elem.get('filename'))) == abs_source_path:
             break
     else:
-        raise ValueError('couldn\'t find coverage data for source file "%s" in coverage.xml document' % source_path)
+        return None
     return class_elem
 
 def extract_line_nums(doc, source_path, coverage_file):
@@ -63,6 +63,12 @@ def extract_line_nums(doc, source_path, coverage_file):
     * `coverage_file` - path to, or file object representing, the coverage.xml document
     '''
     class_elem = find_class_elem(doc, source_path, coverage_file)
+    if class_elem == None:
+        warnings.warn('Could not find coverage data for source file: %s; proceeding under the assumption that this code is uncovered'
+            % source_path)
+        # we'll assume every line in the file is a statement line; this is ok, 
+        # because this just gets intersected with the ast version anyway
+        return frozenset(), frozenset(range(sum(1 for l in open(source_path))))
     
     hit_lines = set()
     missed_lines = set()

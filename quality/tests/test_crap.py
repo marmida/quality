@@ -6,6 +6,7 @@ import mock
 from nose.tools import *
 import os
 import os.path
+import warnings
 import xml.etree.ElementTree
 
 
@@ -202,43 +203,37 @@ def test_find_class_elem():
     for args in args_ls:
         yield (_test_find_class_elem,) + args
 
-    with assert_raises(ValueError) as assert_context:
-        quality.crap.find_class_elem(doc, 'non-existent-file', '/tmp/coverage.xml')
-    assert_equal('couldn\'t find coverage data for source file "non-existent-file" in coverage.xml document', assert_context.exception.args[0])
+    assert_equal(None, quality.crap.find_class_elem(doc, 'non-existent-file', '/tmp/coverage.xml'))
 
 def test_extract_line_nums():
     'extract_line_nums: correctly splits hit and missed lines, per file'
-    doc = xml.etree.ElementTree.ElementTree(element=xml.etree.ElementTree.fromstring('''<?xml version="1.0" ?>
-<!DOCTYPE coverage
-  SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-03.dtd'>
-<coverage>
-    <packages>
-        <package>
-            <classes>
-                <class branch-rate="0" complexity="0" filename="/tmp/something_a.py" line-rate="0.9305" name="something_a">
-                    <methods/>
-                    <lines>
-                        <line hits="1" number="7"/>
-                        <line hits="0" number="8"/>
-                        <line hits="1" number="9"/>
-                    </lines>
-                </class>
-            </classes>
-        </package>
-        <package>
-            <classes>
-                <class branch-rate="0" complexity="0" filename="/usr/lib/python2.7/site-packages/something_b.py" line-rate="0.9305" name="something_b">
-                    <methods/>
-                    <lines>
-                        <line hits="0" number="7"/>
-                        <line hits="1" number="8"/>
-                        <line hits="1" number="9"/>
-                    </lines>
-                </class>
-            </classes>
-        </package>
-    </packages>
-</coverage>'''))
+    def mock_line_elem(hit, number):
+        def getter(attr_name):
+            if attr_name == 'number':
+                return str(number)
+            elif attr_name == 'hits':
+                return '1' if hit else '0'
+            else:
+                raise ValueError('provided unexpected argument to \'get\': %s' % attr_name)
+        return mock.MagicMock(get=mock.MagicMock(side_effect=getter))
 
-    assert_equal((set([7, 9]), set([8])), quality.crap.extract_line_nums(doc, '/tmp/something_a.py', 'coverage.xml'))
-    assert_equal((set([8, 9]), set([7])), quality.crap.extract_line_nums(doc, '/usr/lib/python2.7/site-packages/something_b.py', 'coverage.xml'))
+    def mock_class_elem(hit_lines, miss_lines):
+        unified = sorted(hit_lines + miss_lines)
+        line_elems = [mock_line_elem(num in hit_lines, num) for num in unified]
+        class_elem = mock.MagicMock(__getitem__=mock.MagicMock(return_value=line_elems))
+        return class_elem
+
+    # mocking out xml stuff and find_class_elem, guarantee that the line numbers get retrieved as expected
+    doc = mock.MagicMock(name='xmldoc')
+    class_elem_a = mock_class_elem([7, 9, 10], [4, 5, 8])
+    
+    with mock.patch('quality.crap.find_class_elem', return_value=class_elem_a):
+        assert_equal((set([7, 9, 10]), set([4, 5, 8])), quality.crap.extract_line_nums(doc, '/tmp/something_a.py', 'coverage.xml'))
+        quality.crap.find_class_elem.assert_called_once_with(doc, '/tmp/something_a.py', 'coverage.xml')
+
+    # ask for the coverage on this file (test_crap.py), which won't exist in the above document, but does exist on the filesystem
+    cur_file = os.path.abspath(__file__.replace('.pyc', '.py'))
+    cur_file_lines = frozenset([num for num, l in enumerate(open(cur_file).readlines())])
+    with warnings.catch_warnings(record=True) as warnings_context:
+        assert_equal((set(), cur_file_lines), quality.crap.extract_line_nums(doc, cur_file, 'coverage.xml'))
+        assert 'Could not find coverage data for source file' in str(warnings_context[-1].message)
