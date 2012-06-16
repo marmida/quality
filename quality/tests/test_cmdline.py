@@ -63,9 +63,9 @@ def test_find_source_files():
             # multiple excludes
             ('.', [r'a', r'[\d]'], None, ['./decoy.py/decoy.py', './dir_b/b.py']),
             # single include
-
+            ('.', None, [r'dir_b'], ['./dir_b/b.py','./dir_b/dir_b1/b1.py','./dir_b/dir_b2/b2.py',]),
             # multiple includes
-
+            ('.', None, [r'dir_b', r'dir_a'], ['./dir_a/a.py', './dir_b/b.py','./dir_b/dir_b1/b1.py','./dir_b/dir_b2/b2.py',]),
             # given a path to a directory that looks like a file, find the file inside it
             ('decoy.py', None, None, ['decoy.py/decoy.py']),
             # given a path to a single file, return that file

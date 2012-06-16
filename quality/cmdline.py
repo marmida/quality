@@ -31,7 +31,7 @@ def find_source_files(source_dir, exclude=None, include=None):
     excluded if they match any of these patterns.
 
     If provided, `include` is a list of regexes; candidates are
-    included only if they match all of these patterns.
+    included only if they match one of these patterns.
 
     If both `exclude` and `include` are provided, raise ValueError.
 
@@ -60,9 +60,9 @@ def find_source_files(source_dir, exclude=None, include=None):
     elif include:
         def filter_fn(x):
             for regex in include:
-                if not regex.search(x):
-                    return False
-            return True
+                if regex.search(x):
+                    return True
+            return False
     else:
         filter_fn = lambda x: True
 
