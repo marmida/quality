@@ -6,6 +6,7 @@ from nose.tools import *
 import os.path
 import sys
 import unittest
+import warnings
 import xml.etree.ElementTree
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
@@ -190,3 +191,13 @@ def test_run_contest(etree_parse, ast_parse, mock_open):
     assert_equal(set(result['/path/to/src.py']), set([contestant_b, contestant_a]))
     assert_equal(4, contestant_a.final_score)
     assert_equal(2, contestant_b.final_score)
+
+@mock.patch('__builtin__.open', spec=file)
+@mock.patch('ast.parse', side_effect=IndentationError())
+def test_run_contest_bad_source(mock_ast_parse, mock_open):
+    'run_contest: gracefully avoids files with bad source code'
+    with warnings.catch_warnings(record=True) as warning_context:
+        quality.core.run_contest(['syntax_error.py'], {}, '0', [])
+
+    mock_ast_parse.assert_called_once()
+    assert 'Exception encountered while parsing file' in str(warning_context[-1].message)

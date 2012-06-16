@@ -5,6 +5,7 @@ Code quality analysis for Python.
 # general module todo: what about lambdas?
 
 import ast
+import warnings
 
 # ###
 # Our concept of "qualified name" : http://www.python.org/dev/peps/pep-3155/
@@ -139,8 +140,12 @@ def run_contest(src_paths, options, formula, recruited_judges):
     results = {}
 
     for src_path in src_paths:
-        # create Contestants from the source
-        src_tree = ast.parse(open(src_path).read(), filename=src_path)
+        try:
+            # parse the source with the ast module
+            src_tree = ast.parse(open(src_path).read(), filename=src_path)
+        except (IndentationError, SyntaxError), exc:
+            warnings.warn('Exception encountered while parsing file %s: %s' % (src_path, exc))
+            continue
         
         # add linenums and qualnames to nodes
         annotate_qualnames(src_tree)
