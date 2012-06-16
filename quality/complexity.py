@@ -2,6 +2,9 @@
 Services for calculating cyclomatic complexity against AST trees.
 
 Inspired by David Stanek's pygenie/cc.py.
+
+I am not very confident that this implementation is anything more than 
+correct-ish.
 '''
 
 import ast
