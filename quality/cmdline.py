@@ -28,10 +28,10 @@ def find_source_files(source_dir, exclude=None, include=None):
     Return a list of paths to Python source files in `source_dir`
 
     If provided, `exclude` is a list of regexes; candidates are 
-    excluded if they match any of these regexes.
+    excluded if they match any of these patterns.
 
     If provided, `include` is a list of regexes; candidates are
-    included only if they match one of these regexes.
+    included only if they match all of these patterns.
 
     If both `exclude` and `include` are provided, raise ValueError.
 

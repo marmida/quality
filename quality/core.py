@@ -167,6 +167,10 @@ def load_judges():
     Eventually this should be expanded to allow for dynamic loading and discovery.
     '''
     import quality.crap
+    import quality.indentation
     
-    return [quality.crap.CrapJudge().judge_crap]
+    return [
+        quality.crap.CrapJudge().judge_crap, 
+        quality.indentation.TabnannyJudge().judge_tabnanny,
+    ]
 
