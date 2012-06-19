@@ -16,7 +16,7 @@ import tokenize
 
 def default_quality_formula():
     'the stock formula, used with simple_parse_args'
-    return 'crap'
+    return 'crap + lint + 25*tabnanny'
 
 class FixedHelpFormatter(optparse.IndentedHelpFormatter):
     'Don\'t re-wrap description text'
