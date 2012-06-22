@@ -2,7 +2,7 @@
 
 from __future__ import absolute_import
 
-import quality.indentation
+import quality.tabnanny
 
 import mock
 from nose.tools import *
@@ -21,14 +21,14 @@ def test_run_tabnanny():
         return fobj.tell()
     
     # the current file should have no problems, and should result in an empty stdout
-    assert_equal(0, get_file_len(quality.indentation.run_tabnanny(CUR_PATH)))
+    assert_equal(0, get_file_len(quality.tabnanny.run_tabnanny(CUR_PATH)))
     # both of the two bad files should yield some output without exiting or raising
-    assert get_file_len(quality.indentation.run_tabnanny(TABNANNY_PROB_PATH))
-    assert get_file_len(quality.indentation.run_tabnanny(INDENT_ERROR_PATH))
+    assert get_file_len(quality.tabnanny.run_tabnanny(TABNANNY_PROB_PATH))
+    assert get_file_len(quality.tabnanny.run_tabnanny(INDENT_ERROR_PATH))
 
 def test_tabnannyjudge_call():
     'TabnannyJudge.run_tabnanny: correctly updates results cache'
-    j = quality.indentation.TabnannyJudge()
+    j = quality.tabnanny.TabnannyJudge()
     # put some bogus data in the judge
     j['abc'] = StringIO.StringIO('')
     j['def'] = StringIO.StringIO('something happened!')

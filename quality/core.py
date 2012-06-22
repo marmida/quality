@@ -171,11 +171,11 @@ def load_judges():
     Eventually this should be expanded to allow for dynamic loading and discovery.
     '''
     import quality.crap
-    import quality.indentation
+    import quality.tabnanny
     import quality.lint
     
     return [
         quality.crap.CrapJudge().judge_crap, 
-        quality.indentation.TabnannyJudge(),
+        quality.tabnanny.TabnannyJudge(),
         quality.lint.LintJudge(),
     ]
