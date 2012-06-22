@@ -1,7 +1,5 @@
 'Integrate the "tabnanny" module as a quality judge'
 
-# TODO: rename back to tabnanny.py
-
 from __future__ import absolute_import
 
 import quality.liason
