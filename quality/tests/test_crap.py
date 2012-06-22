@@ -25,7 +25,7 @@ def _crapjudge_align_linenums(expected, contestant_lines, coverage_lines):
 
     assert_equal(expected, j.align_linenums(contestant))
 
-def test_gen_crapjudge_align_linenums():
+def test_crapjudge_align_linenums():
     'CrapJudge.align_linenums: filters out linenums not in coverage.xml'
     args_ls = [
         # obvious cases
@@ -39,7 +39,7 @@ def test_gen_crapjudge_align_linenums():
     for args in args_ls:
         yield (_crapjudge_align_linenums,) + args
 
-def test_gen_crapjudge_coverage_ratio():
+def test_crapjudge_coverage_ratio():
     'CrapJudge.coverage_ratio: correctly calculates coverage ratio'
     args_ls = [
         (0.5, [15, 16], [5, 6], [5, 6, 15, 16]),
@@ -69,7 +69,7 @@ def _crapjudge_coverage_ratio(expected, hit, miss, contestant_lines):
     if contestant_lines:
         j.align_linenums.assert_called_once_with(contestant)
 
-def _test_crapjudge_judge_crap_cached(mock_complexity_ret, mock_cov_ratio_ret, expected):
+def _test_crapjudge_cached(mock_complexity_ret, mock_cov_ratio_ret, expected):
     'run one test over CrapJudge.judge_crap, in which coverage data is already cached'
     mock_node = mock.MagicMock(name='node')
     contestant = mock.MagicMock(spec=quality.core.Contestant, linenums=set([1, 2, 3]), 
@@ -95,11 +95,11 @@ def _test_crapjudge_judge_crap_cached(mock_complexity_ret, mock_cov_ratio_ret, e
 
     with tripwire_etree_parse:
         with mock.patch('quality.complexity.complexity', return_value=mock_complexity_ret):
-            assert_equal(expected, judge.judge_crap(contestant, coverage_file='coverage.xml'))
+            assert_equal(expected, judge(contestant, coverage_file='coverage.xml'))
             quality.complexity.complexity.assert_called_once_with(mock_node)
             judge.coverage_ratio.assert_called_once_with(contestant)
 
-def test_gen_crapjudge_judge_crap_cached():
+def test_crapjudge_cached():
     'CrapJudge.judge_crap: uses cached coverage info to calculate scores'
     args_ls = [
         # trials that should not attempt to re-parse data
@@ -108,9 +108,9 @@ def test_gen_crapjudge_judge_crap_cached():
     ]
 
     for args in args_ls:
-        yield (_test_crapjudge_judge_crap_cached,) + args
+        yield (_test_crapjudge_cached,) + args
 
-def _test_crapjudge_judge_crap_uncached(mock_complexity_ret, mock_cov_ratio_ret, expected):
+def _test_crapjudge_uncached(mock_complexity_ret, mock_cov_ratio_ret, expected):
     '''
     Run one test over CrapJudge.judge_crap, in which coverage data isn't cached.
 
@@ -140,14 +140,14 @@ def _test_crapjudge_judge_crap_uncached(mock_complexity_ret, mock_cov_ratio_ret,
     with mock.patch('xml.etree.ElementTree.parse', name='mock_etree_parse') as mock_etree_parse:
         with mock.patch('quality.complexity.complexity', return_value=mock_complexity_ret):
             with mock.patch('quality.crap.extract_line_nums', return_value=(mock_hit, mock_miss)):
-                assert_equal(expected, judge.judge_crap(contestant, coverage_file='coverage.xml'))
+                assert_equal(expected, judge(contestant, coverage_file='coverage.xml'))
                 quality.complexity.complexity.assert_called_once_with(mock_node)
                 judge.coverage_ratio.assert_called_once_with(contestant)
                 mock_etree_parse.assert_called_once_with('coverage.xml')
                 assert_equal((mock_hit, mock_miss), judge.coverage['foo.py'])
                 assert_equal(mock_union, judge.unified['foo.py'])
 
-def test_gen_crapjudge_judge_crap_uncached():
+def test_crapjudge_uncached():
     'CrapJudge.judge_crap: populates coverage data cache and calculates scores'
     args_ls = [
         # trials that should not attempt to re-parse data
@@ -156,7 +156,7 @@ def test_gen_crapjudge_judge_crap_uncached():
     ]
 
     for args in args_ls:
-        yield (_test_crapjudge_judge_crap_uncached,) + args
+        yield (_test_crapjudge_uncached,) + args
 
 def _test_find_class_elem(doc, source_path, coverage_file, expected_elem_name):
     actual = quality.crap.find_class_elem(doc, source_path, coverage_file)

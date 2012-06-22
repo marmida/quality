@@ -3,7 +3,6 @@
 from __future__ import absolute_import
 
 import quality.liason
-import quality.dec
 
 import os
 import tabnanny

@@ -175,7 +175,7 @@ def load_judges():
     import quality.lint
     
     return [
-        quality.crap.CrapJudge().judge_crap, 
+        quality.crap.CrapJudge(), 
         quality.tabnanny.TabnannyJudge(),
         quality.lint.LintJudge(),
     ]

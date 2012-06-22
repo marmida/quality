@@ -3,7 +3,6 @@
 from __future__ import absolute_import
 
 import quality.liason
-import quality.dec
 
 import pylint.lint
 from pylint.reporters.text import ParseableTextReporter

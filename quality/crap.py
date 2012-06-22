@@ -4,7 +4,6 @@ Calculate C.R.A.P. scores for Python modules.
 For background on C.R.A.P., see http://www.artima.com/weblogs/viewpost.jsp?thread=215899
 '''
 
-import quality.dec
 import quality.complexity
 
 
@@ -100,6 +99,8 @@ class CrapJudge(object):
     * coverage - dict mapping filenames to sets of line numbers, (hit_lines, missed_lines)
     * unified - dict mapping filenames to sets of all line numbers in coverage.xml: hit_lines | missed_lines
     '''
+    _quality_judge_name = 'crap'
+
     def __init__(self):
         self.coverage = {}
         self.unified = {} # todo: turn this into a property that dynamically combines the hit and miss sets on the fly
@@ -136,8 +137,7 @@ class CrapJudge(object):
         '''
         return contestant.linenums & self.unified[contestant.src_file]
 
-    @quality.dec.judge('crap')
-    def judge_crap(self, contestant, coverage_file=None):
+    def __call__(self, contestant, coverage_file=None):
         '''
         Return the C.R.A.P. score for a Contestant.
 
