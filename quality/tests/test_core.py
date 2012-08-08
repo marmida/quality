@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+
 import quality.core
+import quality.tests.compat # must come before import nose.tools
 
 import ast
 import mock
@@ -80,6 +83,9 @@ def test_annotate_linenums_multiline():
     assert_equal(set([1, 2]), tree.descendant_lines)
 
 def test_annotate_qualnames():
+    # NB: the source code passed to ast is sensitive to different indentation 
+    # constraints depending on the python version; ending the following source
+    # with an empty line causes py2.6's ast to barf up a SyntaxError
     tree = ast.parse('''
 def function_a():
     pass
@@ -87,8 +93,7 @@ def function_a():
 def function_b():
     class C1(object):
         class C2(object):
-            pass
-        ''')
+            pass''')
     quality.core.annotate_qualnames(tree)
     assert_equal('<module>', tree.qualname)
     assert_equal('function_a', tree.body[0].qualname)

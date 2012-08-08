@@ -1,5 +1,9 @@
 'tests for cmdline.py'
 
+from __future__ import absolute_import
+
+import quality.tests.compat # must come before import nose.tools
+
 from nose.tools import *
 import os
 import re
@@ -75,5 +79,5 @@ def test_find_source_files():
             yield (_test_find_source_files,) + args 
 
         # error handling tests
-        with assert_raises(ValueError) as exception_context:
+        with assert_raises(ValueError):
             quality.cmdline.find_source_files(os.path.join(container_dir.path, 'non-existent-path'))

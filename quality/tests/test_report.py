@@ -1,5 +1,9 @@
 'Covers report.py'
 
+from __future__ import absolute_import
+
+import quality.tests.compat # must come before import nose.tools
+
 import math
 import mock
 from nose.tools import *

@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 
 import quality.lint
+import quality.tests.compat # must come before import nose.tools
 
 import os.path
 from nose.tools import *

@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+
 import quality.liason
+import quality.tests.compat # must come before import nose.tools
 
 import mock
 from nose.tools import *

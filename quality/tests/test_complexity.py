@@ -1,9 +1,13 @@
+from __future__ import absolute_import
+
 import quality.complexity
+import quality.tests.compat # must come before import nose.tools
 
 import ast
 from nose.tools import *
 
 def test_complexity():
+    # ending the following source with an empty line causes py2.6's ast to raise SyntaxError
     tree = ast.parse('''
 def function_a():
     pass
@@ -18,8 +22,7 @@ def function_c():
     while True:
         pass
     if True and True and True or True:
-        pass
-        ''')
+        pass''')
     assert_equal(0, quality.complexity.complexity(tree))
     assert_equal(1, quality.complexity.complexity(tree.body[0]))
     assert_equal(2, quality.complexity.complexity(tree.body[1]))

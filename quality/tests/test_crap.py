@@ -1,5 +1,8 @@
+from __future__ import absolute_import
+
 import quality.core
 import quality.crap
+import quality.tests.compat # must come before import nose.tools
 
 import ast
 import mock
