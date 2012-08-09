@@ -1,7 +1,6 @@
 'Python version compatibility fixes'
 
 # code for monkey-patching
-import unittest 
 import nose.tools
 
 # let's fix nose.tools.assert_raises (which is really unittest.assertRaises)
